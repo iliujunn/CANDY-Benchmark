@@ -86,6 +86,10 @@ struct IndexHNSW : Index {
 
     void add(idx_t n, const float* x) override;
 
+    void add_with_ids(idx_t n, const float* x, const idx_t* xids) override;
+
+    void delete_by_ids(const float* x , const idx_t* ids, const idx_t n) override;
+
     /// Trains the storage if needed
     void train(idx_t n, const float* x) override;
 
@@ -103,6 +107,7 @@ struct IndexHNSW : Index {
     void reset() override;
 
     void shrink_level_0_neighbors(int size);
+
 
     /** Perform search only on level 0, given the starting points for
      * each vertex.

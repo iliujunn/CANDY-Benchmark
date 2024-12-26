@@ -6,13 +6,13 @@
 #ifndef CANDY_INCLUDE_CANDY_ABSTRACTINDEX_H_
 #define CANDY_INCLUDE_CANDY_ABSTRACTINDEX_H_
 
+#include <memory>
+#include <tuple>
+#include <vector>
+#include <faiss/IndexFlat.h>
 #include <Utils/AbstractC20Thread.hpp>
 #include <Utils/ConfigMap.hpp>
-#include <memory>
-#include <vector>
 #include <Utils/IntelliTensorOP.hpp>
-#include <faiss/IndexFlat.h>
-#include <tuple>
 namespace CANDY {
 
 /**
@@ -76,6 +76,13 @@ class AbstractIndex {
    * @return bool whether the insertion is successful
    */
   virtual bool insertTensor(torch::Tensor &t);
+ /**
+  * @brief insert the tensor with ids
+  * @note This is majorly an online function
+  * @param t the tensor, some index need to be single row
+  * @return bool whether the insertion is successful
+  */
+  virtual bool insert_batch(torch::Tensor &t ,std::vector<int64_t> &ids);
 
   /**
   * @brief load the initial tensors of a data base, use this BEFORE @ref insertTensor
@@ -92,6 +99,7 @@ class AbstractIndex {
    */
   virtual bool deleteTensor(torch::Tensor &t, int64_t k = 1);
 
+  virtual bool deleteBatchById(std::vector<faiss::idx_t>ids);
   /**
    * @brief revise a tensor
    * @param t the tensor to be revised
@@ -145,6 +153,7 @@ class AbstractIndex {
   * @return whether the building is successful
   */
   virtual bool offlineBuild(torch::Tensor &t);
+
   /**
    * @brief a busy waiting for all pending operations to be done
    * @return bool, whether the waiting is actually done;

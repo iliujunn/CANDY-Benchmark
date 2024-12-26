@@ -192,6 +192,12 @@ struct HNSW {
             std::vector<omp_lock_t>& locks,
             VisitedTable& vt);
 
+    void remove_by_id(DistanceComputer& ptdis,
+        storage_idx_t pt_id,
+        std::vector<omp_lock_t>& locks,
+        VisitedTable& vt);
+
+
     /// search interface for 1 point, single thread
     HNSWStats search(
             DistanceComputer& qdis,

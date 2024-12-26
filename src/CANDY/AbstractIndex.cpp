@@ -158,6 +158,18 @@ bool CANDY::AbstractIndex::loadInitialTensorAndQueryDistribution(torch::Tensor &
 bool CANDY::AbstractIndex::resetIndexStatistics() {
   return false;
 }
+
+bool CANDY::AbstractIndex::insert_batch(torch::Tensor& t, std::vector<int64_t>& ids)
+{
+  assert(t.size(0) == ids.size());
+  return false ;
+}
+
+bool CANDY::AbstractIndex::deleteBatchById(std::vector<faiss::idx_t>ids)
+{
+  assert(ids.size()>0);
+  return false;
+}
 INTELLI::ConfigMapPtr CANDY::AbstractIndex::getIndexStatistics() {
   auto ru = newConfigMap();
   ru->edit("hasExtraStatistics", (int64_t) 0);

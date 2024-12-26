@@ -71,8 +71,12 @@ int main(int argc, char **argv) {
     if (argc >= 2) {
       std::string fileName = "";
       fileName += argv[1];
+      std::cout<<fileName<<std::endl;
       if (inMap->fromFile(fileName)) { std::cout << "load config from file " + fileName << endl; }
     }
+  }else
+  {
+    std::cout<<"failed to load config"<<std::endl;
   }
   /**
    * @brief 2. create the data and query, and prepare initialTensor

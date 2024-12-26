@@ -289,6 +289,74 @@ class IntelliTensorOP {
     }
     return false;
   }
+
+  static bool appendById(torch::Tensor *dbTensor,
+                       const torch::Tensor &t,
+                       const std::vector<int64_t> &ids,
+                       int64_t vecDim,
+                       int64_t *lastNNZ) {
+    // 校验输入维度
+    if (t.size(1) != vecDim || t.size(0) != ids.size()) {
+      return false; // 输入 Tensor 的列维度或行数与 ids 不匹配
+    }
+
+    // 确定 dbTensor 是否需要扩展
+    int64_t maxId = *std::max_element(ids.begin(), ids.end());
+    if (maxId >= dbTensor->size(0)) { // 如果最大 ID 超出当前 dbTensor 的行数
+      int64_t expandSize = maxId + 1 - dbTensor->size(0);
+      *dbTensor = torch::cat({*dbTensor, torch::zeros({expandSize, dbTensor->size(1)})}, 0); // 扩展行
+    }
+
+    // 遍历 ids，将 t 的数据插入到 dbTensor 的对应行
+    for (size_t i = 0; i < ids.size(); ++i) {
+      int64_t id = ids[i];
+      if (id >= 0) {
+        // 将 t 的第 i 行数据插入到 dbTensor 的第 id 行
+        dbTensor->slice(0, id, id + 1) = t.slice(0, i, i + 1); // 插入对应行数据
+      }
+    }
+    // 更新 lastNNZ
+    // 找到 ids 中的最大值并更新 lastNNZ
+    int64_t maxInsertedId = *std::max_element(ids.begin(), ids.end());
+    if (maxInsertedId > *lastNNZ) {
+      *lastNNZ = maxInsertedId; // 更新 lastNNZ 为最大插入 id
+    }
+    return true;
+  }
+  static void extractRowsToFloatPointer(torch::Tensor *dbTensor,
+                               const std::vector<int64_t>& ids,
+                               float*& outData) {
+    // 校验 dbTensor 是否为二维张量
+    if (dbTensor->dim() != 2) {
+      std::cerr << "Input tensor must be 2D!" << std::endl;
+      return;
+    }
+
+    // 确保 ids 中的每个元素在有效范围内
+    int64_t numRows = dbTensor->size(0);  // dbTensor 的行数
+    for (size_t i = 0; i < ids.size(); ++i) {
+      if (ids[i] < 0 || ids[i] >= numRows) {
+        std::cerr << "Invalid index in ids: " << ids[i] << std::endl;
+        return;
+      }
+    }
+
+    // 分配内存，存储每一行数据
+    size_t totalRows = ids.size();
+    size_t rowSize = dbTensor->size(1);  // 每行的列数
+    outData = new float[totalRows * rowSize];  // 用来存储提取的行数据
+
+    // 提取对应的行并存储到 outData
+    for (size_t i = 0; i < totalRows; ++i) {
+      // 使用 slice 提取第 i 行数据
+      torch::Tensor row = dbTensor->index({ids[i]});
+
+      // 将 row 转换为 float* 并存储
+      std::memcpy(outData + i * rowSize, row.data_ptr<float>(), rowSize * sizeof(float));
+    }
+
+    std::cout << "Extracted " << totalRows << " rows into float pointer." << std::endl;
+  }
   /**
 * @brief append rows to the head tensor, under the buffer mode
 * @param tHead the head tensor, using shared pointer

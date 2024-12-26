@@ -10,6 +10,8 @@
 #include <faiss/IndexNSG.h>
 #include <faiss/IndexVanama.h>
 #include <faiss/IndexMNRU.h>
+#include <faiss/MetricType.h>
+
 
 bool CANDY::FaissIndex::setConfig(INTELLI::ConfigMapPtr cfg) {
   AbstractIndex::setConfig(cfg);
@@ -194,7 +196,6 @@ bool CANDY::FaissIndex::insertTensor(torch::Tensor &t) {
 }
 
 std::vector<faiss::idx_t> CANDY::FaissIndex::searchIndex(torch::Tensor q, int64_t k) {
-
   auto queryData = q.contiguous().data_ptr<float>();
 	std::cout<<"tiny wait"<<std::endl; 
  int64_t querySize = q.size(0);
@@ -265,3 +266,69 @@ std::vector<torch::Tensor> CANDY::FaissIndex::getTensorByIndex(std::vector<faiss
   }
   return ru;
 }
+
+
+bool CANDY::FaissIndex::insert_batch(torch::Tensor & t , std::vector<int64_t> & ids)
+{
+  // normalize the tensor before insert
+  if (metricType == "cossim") {
+    t = t / (torch::sqrt(torch::sum(t * t, 1)).view({t.size(0), 1}));
+  }
+  // if (!isFaissTrained) {
+  //   loadInitialTensor(t);
+  //   isFaissTrained = true;
+  //   return false;
+  // }
+  float *new_data = t.contiguous().data_ptr<float>();
+  auto n = t.size(0);
+  if (index_type == "IVFPQ" || index_type == "PQ") {
+    if (vecDim == 100 || vecDim == 420) {
+      auto t_temp = torch::zeros({n, vecDim + 4});
+      t_temp.slice(1, 0, vecDim) = t;
+
+      t_temp = t_temp.nan_to_num(0.0);
+      float *new_data_padding = t_temp.contiguous().data_ptr<float>();
+      index->add(n, new_data_padding);
+      return INTELLI::IntelliTensorOP::appendRowsBufferMode(&dbTensor, &t, &lastNNZ, expandStep);
+    } else if (vecDim == 1369) {
+      auto t_temp = torch::zeros({n, vecDim + 7});
+      t_temp.slice(1, 0, vecDim) = t;
+      std::cout << "inserting" << std::endl;
+
+      t_temp = t_temp.nan_to_num(0.0);
+      float *new_data_padding = t_temp.contiguous().data_ptr<float>();
+      index->add(n, new_data_padding);
+      return INTELLI::IntelliTensorOP::appendRowsBufferMode(&dbTensor, &t, &lastNNZ, expandStep);
+    }
+  }
+  if (index_type == "IVFPQ" || index_type == "PQ" || index_type == "LSH") {
+    index->add(n, new_data);
+    return INTELLI::IntelliTensorOP::appendRowsBufferMode(&dbTensor, &t, &lastNNZ, expandStep);
+  } else {
+    // index->add(n, new_data);
+    int64_t* ids_ptr = ids.data();
+    index->add_with_ids(n, new_data, ids_ptr);
+    //should be unneeded
+    // INTELLI::IntelliTensorOP::appendRowsBufferMode(&dbTensor, &t, &lastNNZ, expandStep);
+    INTELLI::IntelliTensorOP::appendById(&dbTensor, t, ids, vecDim,&lastNNZ);
+    return true;
+
+  }
+}
+
+bool CANDY::FaissIndex::deleteBatchById(std::vector<faiss::idx_t> ids)
+{
+  if(index_type == "HNSW")
+  {
+    float* x;
+    INTELLI::IntelliTensorOP::extractRowsToFloatPointer(&dbTensor, ids, x);
+    faiss::idx_t *xids = ids.data();
+    index->delete_by_ids(x, xids, ids.size());
+    INTELLI::IntelliTensorOP::deleteRowsBufferMode(&dbTensor, ids,&lastNNZ);
+
+  }
+
+  return true;
+
+}
+

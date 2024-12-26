@@ -129,6 +129,8 @@ struct Index {
      * @param distances   output pairwise distances, size n*k
      * @param labels      output labels of the NNs, size n*k
      */
+
+   virtual void delete_by_ids(const float* x , const idx_t* ids,const idx_t n);
     virtual void search(
             idx_t n,
             const float* x,

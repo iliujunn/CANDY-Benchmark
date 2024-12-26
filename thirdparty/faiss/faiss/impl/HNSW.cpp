@@ -508,6 +508,56 @@ void HNSW::add_with_locks(
     }
 }
 
+
+void HNSW::remove_by_id(DistanceComputer& ptdis,
+    storage_idx_t pt_id,
+    std::vector<omp_lock_t>& locks,
+    VisitedTable& vt) {
+
+    for(int level = levels[pt_id] ;level >= 0 ; -- level ) {
+        size_t begin, end;
+        neighbor_range(pt_id, level, &begin, &end);
+        for (size_t j = begin; j < end; j++) {
+            storage_idx_t v1 = neighbors[j];
+            if (v1 < 0) break;
+            omp_set_lock(&locks[v1]);
+            size_t begin1, end1;
+            neighbor_range(v1, level, &begin1, &end1);
+            std::priority_queue<NodeDistCloser> resultSet;
+            bool found = false;
+            for (size_t j1 = begin1; j1 < end1; j1++) {
+                storage_idx_t v2 = neighbors[j1];
+                resultSet.emplace(ptdis.symmetric_dis(v1, v2), v2);
+                if (v2 < 0) break;
+                if (v2 == pt_id) {
+                    found = true ; // an edge to pt_id is found
+                    for(int j2 = begin ; j2 < end ; j2++) {
+                        storage_idx_t v3 = neighbors[j2];
+                        resultSet.emplace(ptdis.symmetric_dis(v1, v3), v3);
+                    }
+                    neighbors[j1] = -1;
+                    break;
+                }
+            }
+
+            if(found) {
+                ::faiss::shrink_neighbor_list(ptdis, resultSet, end1 - begin1);
+                for(size_t j1 = begin1 ; j1 < end1 ; j1++) {
+                    neighbors[j1] = -1;
+                }
+                while(!resultSet.empty()) {
+                    NodeDistCloser v = resultSet.top();
+                    resultSet.pop();
+                    add_link(*this,ptdis,v1, v.id, level);
+                }
+            }
+            omp_unset_lock(&locks[v1]);
+        }
+        for (size_t j = begin; j < end; j++) {
+            neighbors[j] = -1;
+        }
+    }
+}
 /**************************************************************
  * Searching
  **************************************************************/

@@ -63,6 +63,15 @@ class FaissIndex : public AbstractIndex {
    * @return bool whether the configuration is successful
    */
   virtual bool setConfig(INTELLI::ConfigMapPtr cfg);
+
+
+ /**
+  * @brief insert the tensors with ids
+  * @note This is majorly an online function
+  * @param t the tensor, some index need to be single row
+  * @return bool whether the insertion is successful
+  */
+ virtual bool insert_batch(torch::Tensor& t, std::vector<int64_t>& ids);
   /**
   * @brief load the initial tensors of a data base, use this BEFORE @ref insertTensor
   * @note This is majorly an offline function, and may be different from @ref insertTensor for some indexes
@@ -97,6 +106,7 @@ class FaissIndex : public AbstractIndex {
    * @return a vector of tensors, each tensor represent KNN results of one query in idx
    */
   virtual std::vector<torch::Tensor> getTensorByIndex(std::vector<faiss::idx_t> &idx, int64_t k);
+  virtual bool deleteBatchById(std::vector<faiss::idx_t>ids);
 };
 
 /**

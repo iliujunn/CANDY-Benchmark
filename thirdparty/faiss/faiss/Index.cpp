@@ -44,6 +44,9 @@ void Index::add_with_ids(
         const idx_t* /*xids*/) {
     FAISS_THROW_MSG("add_with_ids not implemented for this type of index");
 }
+void Index::delete_by_ids(const float* x ,const idx_t* ids, const idx_t n) {
+    FAISS_THROW_MSG("delete_by_ids not implemented for this type of index");
+}
 
 size_t Index::remove_ids(const IDSelector& /*sel*/) {
     FAISS_THROW_MSG("remove_ids not implemented for this type of index");
